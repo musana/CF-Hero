@@ -160,7 +160,7 @@ It uses the security trails service for historical DNS records. You can perform 
 cf-hero requires **go1.18** to install successfully. Run the following command to install.
 
 ```
-go install -v github.com/musana/cf-hero@latest
+go install -v github.com/musana/cf-hero/cmd/cf-hero@latest
 ```
 
 # Usage
