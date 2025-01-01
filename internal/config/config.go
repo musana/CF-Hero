@@ -12,7 +12,7 @@ import (
 func ParseOptions() *models.Options {
 	options := &models.Options{}
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription(`Exposing real IPs of been domain behind of Cloudflare`)
+	flagSet.SetDescription(`Unmask the origin IPs of Cloudflare-protected domains`)
 
 	createGroup(flagSet, "General Options", "GENERAL OPTIONS",
 		flagSet.IntVar(&options.Worker, "w", 16, "Worker count"),
