@@ -272,6 +272,15 @@ censys:
 
 ```
 
+## SS
+<p align="left">
+  <img src="img/1.png">
+</p>
+
+<p align="left">
+  <img src="img/2.png">
+</p>
 
 ## To Do
 - JA3 Randomization. (In some cases, Cloudflare blocks the JA3 hash of libraries used for automation/scanning purposes at the TLS layer. This feature is designed to bypass that protection. You can currently provide a custom JA3 string to bypass this protection.)
+- A more effective technique will be added to determine if two HTTP responses are the same.
