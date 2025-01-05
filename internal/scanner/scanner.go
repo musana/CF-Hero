@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	neturl "net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -56,7 +57,7 @@ func (s *Scanner) PreScan() {
 		wg.Add(1)
 		wp.Submit(func() {
 			defer wg.Done()
-			domain := strings.Split(url, "//")[1]
+			domain := regexp.MustCompile(`^(?:https?:\/\/)?(.+)$`).FindStringSubmatch(url)[1]
 			cfIPs, _ := dns.GetARecords(domain)
 
 			s.mu.Lock()
@@ -99,11 +100,15 @@ func (s *Scanner) Start(url string) {
 		return
 	}
 
-	domain := strings.Split(url, "//")[1]
+	domain := regexp.MustCompile(`^(?:https?:\/\/)?(.+)$`).FindStringSubmatch(url)[1]
 	cfIPs, nonCFIPs := dns.GetARecords(domain)
 
 	if len(cfIPs) > 0 {
-		actualHTMLTitle, _ := s.getHTMLTitle(url)
+		fullURL := url
+		if !strings.HasPrefix(url, "http") {
+			fullURL = "http://" + url
+		}
+		actualHTMLTitle, _ := s.getHTMLTitle(fullURL)
 
 		if len(nonCFIPs) > 0 {
 			s.checkARecords(url, nonCFIPs, cfIPs[0], actualHTMLTitle)
@@ -135,7 +140,7 @@ func (s *Scanner) Start(url string) {
 }
 
 func (s *Scanner) printDomains(url string) {
-	domain := strings.Split(url, "//")[1]
+	domain := regexp.MustCompile(`^(?:https?:\/\/)?(.+)$`).FindStringSubmatch(url)[1]
 	cfIPs, nonCFIPs := dns.GetARecords(domain)
 
 	if s.Options.CF {
@@ -152,10 +157,8 @@ func (s *Scanner) printDomains(url string) {
 
 func (s *Scanner) checkDomainList(url string, cfIP net.IP, actualHTMLTitle string) {
 	for _, d := range s.Domains {
-		parseIt := strings.Split(d, "//")
-		domain := parseIt[1]
-
-		targetDomain := strings.Split(s.Options.TargetDomain, "//")[1]
+		domain := regexp.MustCompile(`^(?:https?:\/\/)?(.+)$`).FindStringSubmatch(d)[1]
+		targetDomain := regexp.MustCompile(`^(?:https?:\/\/)?(.+)$`).FindStringSubmatch(s.Options.TargetDomain)[1]
 
 		_, nonCFIPs := dns.GetARecords(domain)
 
@@ -171,6 +174,9 @@ func (s *Scanner) checkDomainList(url string, cfIP net.IP, actualHTMLTitle strin
 }
 
 func (s *Scanner) checkHTMLTitle(urlStr string, hostHeader string) string {
+	if !strings.HasPrefix(urlStr, "http") {
+		urlStr = "http://" + urlStr
+	}
 	// URL'den host kısmını çıkar
 	parsedURL, err := neturl.Parse(urlStr)
 	if err != nil {
@@ -185,6 +191,9 @@ func (s *Scanner) checkHTMLTitle(urlStr string, hostHeader string) string {
 }
 
 func (s *Scanner) getHTMLTitle(urlStr string) (string, error) {
+	if !strings.HasPrefix(urlStr, "http") {
+		urlStr = "http://" + urlStr
+	}
 	// URL'den host kısmını çıkar
 	parsedURL, err := neturl.Parse(urlStr)
 	if err != nil {
