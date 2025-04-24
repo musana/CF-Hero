@@ -41,6 +41,15 @@ func New(options *models.Options, urls []string, domains []string) *Scanner {
 	}
 }
 
+// normalizeURL ensures the URL starts with "http://" or "https://"
+func (s *Scanner) normalizeURL(url string) string {
+	// Check if the URL starts with http:// or https://, if not, prepend https://
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return "https://" + url
+	}
+	return url
+}
+
 func (s *Scanner) PreScan() {
 	fmt.Println("\n[*] Pre-scanning domains to identify Cloudflare protected ones...")
 	total := len(s.URLs)
@@ -52,7 +61,7 @@ func (s *Scanner) PreScan() {
 	var wg sync.WaitGroup
 
 	for _, url := range s.URLs {
-		url := url // capture variable
+		url := s.normalizeURL(url) // Normalize the URL
 		wg.Add(1)
 		wp.Submit(func() {
 			defer wg.Done()
@@ -135,6 +144,7 @@ func (s *Scanner) Start(url string) {
 }
 
 func (s *Scanner) printDomains(url string) {
+	url = s.normalizeURL(url) // Normalize the URL
 	domain := strings.Split(url, "//")[1]
 	cfIPs, nonCFIPs := dns.GetARecords(domain)
 
@@ -151,7 +161,9 @@ func (s *Scanner) printDomains(url string) {
 }
 
 func (s *Scanner) checkDomainList(url string, cfIP net.IP, actualHTMLTitle string) {
+	url = s.normalizeURL(url) // Normalize the URL
 	for _, d := range s.Domains {
+		d = s.normalizeURL(d) // Normalize the domain in the list
 		parseIt := strings.Split(d, "//")
 		domain := parseIt[1]
 
