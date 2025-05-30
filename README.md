@@ -22,6 +22,7 @@
   <a href="#installation-instructions">Installation</a> •
   <a href="#usage">Usage</a> •
   <a href="#running-cf-hero">Running cf-hero</a> •
+  <a href="#-sponsorship">ZoomEye (Sponsor)</a> •
   <a href="#to-do">To Do</a>
 </p>
 
@@ -279,6 +280,13 @@ censys:
 
 <p align="left">
   <img src="img/2.png">
+</p>
+
+## 🏆 Sponsorship  
+This project is proudly supported by [ZoomEye](https://www.zoomeye.ai).  
+
+<p height="100" align="left">
+  <a href="https://www.zoomeye.ai"><img height="100" src="https://www.zoomeye.ai/static/logo-CVnk4X2t.svg"></a>
 </p>
 
 ## To Do
