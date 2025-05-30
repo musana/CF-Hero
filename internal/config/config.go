@@ -17,6 +17,8 @@ func ParseOptions() *models.Options {
 	createGroup(flagSet, "General Options", "GENERAL OPTIONS",
 		flagSet.IntVar(&options.Worker, "w", 16, "Worker count"),
 		flagSet.StringVar(&options.File, "f", "", "Input file containing list of host/domain"),
+		flagSet.BoolVar(&options.Verbose, "v", false, "Enable verbose output"),
+		flagSet.StringVar(&options.Title, "title", "", "Specify HTML title to match (skip fetching from Cloudflare domain)"),
 	)
 
 	createGroup(flagSet, "print options", "PRINT OPTIONS",
@@ -28,6 +30,7 @@ func ParseOptions() *models.Options {
 		flagSet.BoolVar(&options.Censys, "censys", false, "Include Censys in scanning"),
 		flagSet.BoolVar(&options.SecurityTrails, "securitytrails", false, "Include SecurityTrails historical DNS records in scanning"),
 		flagSet.BoolVar(&options.Shodan, "shodan", false, "Include Shodan historical DNS records in scanning"),
+		flagSet.BoolVar(&options.Zoomeye, "zoomeye", false, "Include Zoomeye in scanning"),
 		flagSet.StringVar(&options.DomainList, "dl", "", "Domain list for sub/domain scanning"),
 		flagSet.StringVar(&options.TargetDomain, "td", "", "Target domain for sub/domain scanning"),
 	)

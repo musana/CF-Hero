@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Options struct {
 	File           string
@@ -17,6 +20,9 @@ type Options struct {
 	Censys         bool
 	SecurityTrails bool
 	Shodan         bool
+	Zoomeye        bool
+	Verbose        bool
+	Title          string
 }
 
 type CensysJSON struct {
@@ -35,17 +41,19 @@ type CensysJSON struct {
 }
 
 type SecurityTrailsResponse struct {
-	Records []struct {
+	Endpoint string `json:"endpoint"`
+	Pages    int    `json:"pages"`
+	Records  []struct {
 		Values []struct {
-			IP string `json:"ip"`
+			IP      string `json:"ip"`
+			IPCount int    `json:"ip_count"`
 		} `json:"values"`
-		Type      string `json:"type"`
-		FirstSeen string `json:"first_seen"`
-		LastSeen  string `json:"last_seen"`
+		Type          string   `json:"type"`
+		FirstSeen     string   `json:"first_seen"`
+		LastSeen      string   `json:"last_seen"`
+		Organizations []string `json:"organizations"`
 	} `json:"records"`
-	Meta struct {
-		TotalRecords int `json:"total_records"`
-	} `json:"meta"`
+	Type string `json:"type"`
 }
 
 type ShodanDNSHistoryResponse struct {
@@ -55,4 +63,18 @@ type ShodanDNSHistoryResponse struct {
 		LastSeen  string `json:"last_seen"`
 		FirstSeen string `json:"first_seen"`
 	} `json:"data"`
+}
+
+type ZoomeyeResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Query   string `json:"query"`
+	Total   int    `json:"total"`
+	Data    []struct {
+		IP         string          `json:"ip"`
+		Port       json.RawMessage `json:"port"`
+		Domain     string          `json:"domain"`
+		UpdateTime string          `json:"update_time"`
+	} `json:"data"`
+	Facets map[string]interface{} `json:"facets"`
 }

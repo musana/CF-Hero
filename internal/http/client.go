@@ -59,7 +59,7 @@ func RequestBuilder(url, token, httpMethod, userAgent string) *http.Request {
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Connection", "Close")
 	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-	req.Header.Add("Authorization", "Basic "+token)
+	//req.Header.Add("Authorization", "Basic "+token)
 
 	return req
 }
@@ -74,9 +74,7 @@ func CycleTLSforJA3(url, ja3, userAgent, proxy string) (cycletls.Response, error
 		Timeout:         5,
 		Proxy:           proxy,
 		DisableRedirect: false,
-		Headers: map[string]string{
-			"Content-Type": "application/json",
-		},
+		Headers:         map[string]string{},
 	}, "GET")
 
 	return response, err
@@ -136,7 +134,49 @@ func GetHTMLTitleWithPortCheck(ip string, ja3, userAgent, proxy string) (string,
 			reader := strings.NewReader(resp.Body)
 			doc, err := html.Parse(reader)
 			if err == nil {
-				return GetHTMLTitle(doc), nil
+				title := GetHTMLTitle(doc)
+				if title != "" {
+					return title, nil
+				}
+			}
+		}
+	}
+
+	// Try with standard HTTP client to follow redirects
+	client := NewHTTPClient(proxy, "")
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return nil
+	}
+
+	// Try HTTP first
+	if CheckPort(ip, "80") {
+		resp, err := client.Get("http://" + ip)
+		if err == nil {
+			defer resp.Body.Close()
+			doc, err := html.Parse(resp.Body)
+			if err == nil {
+				title := GetHTMLTitle(doc)
+				if title != "" {
+					return title, nil
+				}
+			}
+		}
+	}
+
+	// Try HTTPS if HTTP fails
+	if CheckPort(ip, "443") {
+		resp, err := client.Get("https://" + ip)
+		if err == nil {
+			defer resp.Body.Close()
+			doc, err := html.Parse(resp.Body)
+			if err == nil {
+				title := GetHTMLTitle(doc)
+				if title != "" {
+					return title, nil
+				}
 			}
 		}
 	}
