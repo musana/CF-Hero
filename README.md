@@ -347,7 +347,7 @@ other options (custom ja3, proxy, worker, user agent)
 # cf-hero -d https://musana.net -ua "Mozilla" -w 32 -ja3 "771,22..." -px "http://127.0.0.1:8080"
 ```
 
-create cf-hero.yaml file under $HOME/.config/ directory to set censys API key
+create cf-hero.yaml file under $HOME/.config/ directory to set the APIs key
 ```
 # touch ~/.config/cf-hero.yaml
 
