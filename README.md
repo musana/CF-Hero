@@ -372,7 +372,7 @@ Smart coloring: Yellow highlights indicate non-Cloudflare IPs, which will only b
 </p>
 
 <p align="left">
-  <img src="img/2.png">
+  <img src="img/4.png">
 </p>
 
 ## 🏆 Sponsorship  
