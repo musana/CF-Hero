@@ -135,6 +135,8 @@ The tool analyzes data from these sources to identify potential origin IP addres
   - Checks current DNS records (A, TXT)
   - Extracts domains behind Cloudflare
   - Extracts domains not behind Cloudflare
+  - User-provided HTML title (in case of CF blocks you)
+  - Smart colouring
 
 - Third-party Intelligence
   - ZoomEye integration
