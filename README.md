@@ -303,6 +303,12 @@ or you can pass "f" parameter to it.
 # cf-hero -f domains.txt
 ```
 
+
+Use the **zoomeye** parameter to include Shodan in the scan
+```
+# cat domain.txt | cf-hero -zoomeye
+```
+
 Use the **censys** parameter to include Shodan in the scan
 ```
 # cat domain.txt | cf-hero -censys
@@ -347,6 +353,8 @@ create cf-hero.yaml file under $HOME/.config/ directory to set censys API key
 
 // content of YAML file should be like;
 
+zoomeye:
+  - "api_key_here"
 securitytrails:
   - "api_key_here"
 shodan:
