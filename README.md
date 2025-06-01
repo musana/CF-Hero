@@ -246,6 +246,7 @@ go install -v github.com/musana/cf-hero/cmd/cf-hero@latest
 
 ```
 
+
         ____         __
   _____/ __/        / /_  ___  _________
  / ___/ /__  ___   / __ \/ _ \/ ___/ __ \
@@ -262,17 +263,20 @@ Usage:
 
 Flags:
 GENERAL OPTIONS:
-   -w int     Worker count (default 16)
-   -f string  Input file containing list of host/domain
+   -w int         Worker count (default 16)
+   -f string      Input file containing list of host/domain
+   -v             Enable verbose output
+   -title string  Specify HTML title to match (skip fetching from Cloudflare domain)
 
 PRINT OPTIONS:
-   -cf      Print domains behind of Cloudflare
-   -non-cf  Print domains not behind of Cloudflare
+   -cf      Print domains behind Cloudflare
+   -non-cf  Print domains not behind Cloudflare
 
 SOURCES:
    -censys          Include Censys in scanning
    -securitytrails  Include SecurityTrails historical DNS records in scanning
    -shodan          Include Shodan historical DNS records in scanning
+   -zoomeye         Include Zoomeye in scanning
    -dl string       Domain list for sub/domain scanning
    -td string       Target domain for sub/domain scanning
 
@@ -281,6 +285,7 @@ CONFIGURATION:
    -ja3 string  JA3 String (default "772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,18-10-16-23-45-35-5-11-13-65281-0-51-43-17513-27,29-23-24,0")
    -ua string   HTTP User-Agent (default "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/113.0")
    -px string   HTTP proxy URL
+
 
 
 ```
