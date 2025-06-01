@@ -38,7 +38,7 @@ CF-Hero is a comprehensive reconnaissance tool developed to discover the real IP
 - Historical DNS data analysis
 - Associated domain discovery
 
-### Intelligence Sources / Integration
+### Intelligence Sources
 - ZoomEye search engine
 - Censys search engine
 - Shodan search engine
@@ -135,6 +135,7 @@ The tool analyzes data from these sources to identify potential origin IP addres
   - Extracts domains not behind Cloudflare
 
 - Third-party Intelligence
+  - ZoomEye integration
   - Censys integration
   - Shodan integration
   - SecurityTrails integration
