@@ -5,43 +5,54 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/Danny-Dasilva/CycleTLS/cycletls"
-	"github.com/hashicorp/go-retryablehttp"
 	"golang.org/x/net/html"
 )
 
-func NewHTTPClient(proxy string, urlx string) *http.Client {
-	tr := &http.Transport{
-		MaxIdleConns:        20,
-		MaxConnsPerHost:     20,
-		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     time.Second * 2,
-		DisableKeepAlives:   true,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+func NewHTTPClient(proxy string, targetURL string) *http.Client {
+	transport := &http.Transport{
 		DialContext: (&net.Dialer{
-			Timeout:   time.Second * 2,
-			KeepAlive: time.Second * 2,
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
 		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		DisableKeepAlives:     false,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
 
 	if proxy != "" {
-		if p, err := url.Parse(proxy); err == nil {
-			tr.Proxy = http.ProxyURL(p)
-		}
+		transport.Proxy = http.ProxyFromEnvironment
 	}
 
-	retryClient := retryablehttp.NewClient()
-	retryClient.RetryMax = 2
-	retryClient.RetryWaitMax = time.Second * 1
-	retryClient.Logger = nil
-	retryClient.HTTPClient.Transport = tr
-	httpClient := retryClient.StandardClient()
+	return &http.Client{
+		Transport: transport,
+		Timeout:   60 * time.Second,
+	}
+}
 
-	return httpClient
+func RequestBuilder(url string, token string, method string, userAgent string) *http.Request {
+	req, _ := http.NewRequest(method, url, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Basic "+token)
+	}
+	if userAgent != "" {
+		req.Header.Set("User-Agent", userAgent)
+	} else {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Connection", "keep-alive")
+	return req
 }
 
 func RequestBuilderWithHost(url, hostHeader, httpMethod, userAgent string) *http.Request {
@@ -50,16 +61,6 @@ func RequestBuilderWithHost(url, hostHeader, httpMethod, userAgent string) *http
 	req.Header.Add("Connection", "Close")
 	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 	req.Host = hostHeader
-
-	return req
-}
-
-func RequestBuilder(url, token, httpMethod, userAgent string) *http.Request {
-	req, _ := http.NewRequest(httpMethod, url, nil)
-	req.Header.Add("User-Agent", userAgent)
-	req.Header.Add("Connection", "Close")
-	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-	//req.Header.Add("Authorization", "Basic "+token)
 
 	return req
 }

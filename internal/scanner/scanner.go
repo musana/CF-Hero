@@ -43,8 +43,6 @@ func New(options *models.Options, urls []string, domains []string) *Scanner {
 	for _, url := range urls {
 		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 			validURLs = append(validURLs, url)
-		} else {
-			color.Red("[!] %s does not start with http or https. Skipping...", url)
 		}
 	}
 
@@ -91,6 +89,25 @@ func (s *Scanner) PreScan() {
 	if s.Options.Title != "" {
 		color.Cyan("[*] Using provided HTML title: %s", s.Options.Title)
 	}
+
+	// Build technique string
+	var techniques []string
+	techniques = append(techniques, "DNS (a, txt records)") // Always included
+
+	if s.Options.Censys {
+		techniques = append(techniques, "Censys")
+	}
+	if s.Options.SecurityTrails {
+		techniques = append(techniques, "SecurityTrails")
+	}
+	if s.Options.Shodan {
+		techniques = append(techniques, "Shodan")
+	}
+	if s.Options.Zoomeye {
+		techniques = append(techniques, "ZoomEye")
+	}
+
+	color.Cyan("[*] Techniques: %s", strings.Join(techniques, ", "))
 
 	// Check API keys status at the beginning of the scan
 	color.Cyan("\n[*] Checking API keys...")
@@ -160,7 +177,6 @@ func (s *Scanner) Start(url string) {
 	cfIPs, nonCFIPs := dns.GetARecords(domain)
 
 	if len(cfIPs) > 0 {
-
 		var actualHTMLTitle string
 		if s.Options.Title != "" {
 			actualHTMLTitle = s.Options.Title
@@ -169,58 +185,6 @@ func (s *Scanner) Start(url string) {
 		}
 
 		color.White("[*] Target Information: [ %s (%s) (Cloudflare) - Title: %s ]", domain, cfIPs[0], actualHTMLTitle)
-
-		// Check API keys status only once at the beginning
-		/*
-			if url == s.URLs[0] {
-
-				// Censys API key check
-				if s.Options.Censys {
-					if keys := config.ReadAPIKeys("censys"); len(keys) > 0 && keys[0] != "" {
-						color.Green("[*] Censys API found in the config file")
-					} else {
-						color.Yellow("[!] Censys API could not find in the config file")
-						s.Options.Censys = false
-					}
-				}
-
-				// SecurityTrails API key check
-				if s.Options.SecurityTrails {
-					if keys := config.ReadAPIKeys("securitytrails"); len(keys) > 0 && keys[0] != "" {
-						color.Green("[*] SecurityTrails API found in the config filex")
-					} else {
-						color.Yellow("[!] SecurityTrails API could not find in the config file")
-						s.Options.SecurityTrails = false
-					}
-				}
-
-				// Shodan API key check
-				if s.Options.Shodan {
-					if keys := config.ReadAPIKeys("shodan"); len(keys) > 0 && keys[0] != "" {
-						color.Green("[*] Shodan API found in the config filex")
-					} else {
-						color.Yellow("[!] Shodan API could not find in the config file")
-						s.Options.Shodan = false
-					}
-				}
-
-				// Zoomeye API key check
-				if s.Options.Zoomeye {
-					if keys := config.ReadAPIKeys("zoomeye"); len(keys) > 0 && keys[0] != "" {
-						color.Green("[*] Zoomeye API found in the config filex")
-					} else {
-						color.Yellow("[!] Zoomeye API could not find in the config file")
-						s.Options.Zoomeye = false
-					}
-				}
-
-				color.White("\n[*] Scan has been started for targets...")
-			}*/
-
-		s.mu.Lock()
-		s.Stats.TotalIPsScanned = 0
-		s.Stats.RealIPsFound = 0
-		s.mu.Unlock()
 
 		if len(nonCFIPs) > 0 {
 			s.checkARecords(url, nonCFIPs, cfIPs[0], actualHTMLTitle)
@@ -253,7 +217,7 @@ func (s *Scanner) Start(url string) {
 
 		// Print final results only for the last domain
 		if url == s.URLs[len(s.URLs)-1] {
-			color.White("\n[*] Scan Results: %d Real IP(s) found.", s.Stats.RealIPsFound)
+			color.White("\n[*] Scan finished. %d real IP(s) found out of %d IP(s) scanned.", s.Stats.RealIPsFound, s.Stats.TotalIPsScanned)
 		}
 	} else {
 		color.Red("[!] %s is not behind Cloudflare. Skipping...", domain)
@@ -325,6 +289,9 @@ func (s *Scanner) checkARecords(url string, ips []net.IP, cfIP net.IP, actualHTM
 		if s.Options.Verbose {
 			color.Cyan("[*] Non-Cloudflare IP(%s) found in %s's A record. Checking it...", ip.String(), url)
 		}
+		s.mu.Lock()
+		s.Stats.TotalIPsScanned++
+		s.mu.Unlock()
 		s.compareTitle(url, ip, cfIP, "A - Record", actualHTMLTitle)
 	}
 }
@@ -351,6 +318,9 @@ func (s *Scanner) getTXTRecords(domain, url string, cfIP net.IP, actualHTMLTitle
 					if s.Options.Verbose {
 						color.Magenta("[*] Non-Cloudflare IP(%s) found in %s's TXT record. Checking it...", netIP.String(), domain)
 					}
+					s.mu.Lock()
+					s.Stats.TotalIPsScanned++
+					s.mu.Unlock()
 					s.compareTitle(url, netIP, cfIP, "TXT - DNS Record", actualHTMLTitle)
 				}
 			}
@@ -571,7 +541,7 @@ func (s *Scanner) shodanSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 		return
 	}
 
-	maxRetries := 5
+	maxRetries := 3
 	retryCount := 0
 	var resp *http.Response
 	var err error

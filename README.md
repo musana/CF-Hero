@@ -22,6 +22,7 @@
   <a href="#installation-instructions">Installation</a> •
   <a href="#usage">Usage</a> •
   <a href="#running-cf-hero">Running cf-hero</a> •
+  <a href="#-sponsorship">ZoomEye (Sponsor)</a> •
   <a href="#to-do">To Do</a>
 </p>
 
@@ -38,19 +39,94 @@ CF-Hero is a comprehensive reconnaissance tool developed to discover the real IP
 - Associated domain discovery
 
 ### Intelligence Sources
-- Active DNS enumeration
+- ZoomEye search engine
 - Censys search engine
 - Shodan search engine
 - SecurityTrails historical records
+- Active DNS enumeration
 - Related domain correlation
 
 The tool analyzes data from these sources to identify potential origin IP addresses of Cloudflare-protected targets. It validates findings through response analysis to minimize false positives.
 
 **a simple flowchart of the tool**
 
-<p align="left">
-  <img src="img/cf-heroo.jpg">
-</p>
+```
+
+┌──────────┐                                                                                          
+│          │        ┌─────────┐                                                                       
+│  Domain  │───────►│ Check A │                                                                       
+│          │        │ Records │                                                                       
+└──────────┘        └────┬────┘                                                                       
+                         │                                                                            
+      ┌──────────────────┘                                                                            
+      │                                                                                               
+      ▼                                                                                               
+┌────────────┐                                                                                        
+│ Is it bend │              YES                                                                       
+│  CloudFle  │─────────────────────────────────────────┐                                              
+└────────────┘                                         │                                              
+      │                                                │                                              
+      │                                                │                                              
+      │                                                ▼                                              
+      │                                   ┌──────────────────────────┐                                
+      │                                   │  Check the domain from   │                                
+      │                 ┌─────────────────│      various sources     │───────────────────┐            
+      │                 │                 └─┬────────────────────────┘                   │            
+      │                 │                   │                      │                     │            
+      │                 │                   │                      │                     │            
+      │                 │                   │                      │                     │            
+      │                 ▼                   ▼                      ▼                     ▼            
+      │         ┌────────────────┐       ┌─────────────┐        ┌───────────┐      ┌─────────────┐    
+      │         │ Historical DNS │       │ Current DNS │      ┌─┤   OSINT   │      │ Sub/domains │    
+      │      ┌──│    Records     │     ┌─│   Records   │      │ └───────────┘    ┌─│             │    
+      │      │  └────────────────┘     │ └─────────────┘      │   ┌─────────┐    │ └─────────────┘    
+      │      │    ┌──────────────┐     │   ┌────────────┐     ├──►│ ZoomEye │    │   ┌─────────────┐  
+      │      ├───►│SecurityTrails│     ├──►│ TXT        │     │   └─────────┘    │   │ sub(domains)│  
+      │      │    └──────────────┘     │   └────────────┘     │   ┌─────────┐    └──►│ used by the │  
+      │      │    ┌──────────────┐     │   ┌────────────┐     ├──►│ Shodan  │        │ same company│  
+      │    │ └───►│Completedns   │     └──►│ A          │     │   └─────────┘        └─────────────┘ │
+      │    │      └──────────────┘         └────────────┘     │   ┌─────────┐                        │
+      │    │                                                  └──►│ Censys  │                        │
+      │    │                                                      └─────────┘                        │
+      │    │                                                                                         │
+      │    │                                                                                         │
+      │    └────────────────────────────────────────────┬────────────────────────────────────────────┘
+      │                                                 │                                             
+   NO │                                                 │                                             
+      │                                                 │                                             
+      │                                                 │                                             
+      │                                                 ▼                                             
+      │                               ┌──────────────────────────────────────┐                        
+      │                               │ Establish direct HTTP connections to │                        
+      │                               │       each discovered IP address     │                        
+      │                               └──────────────────────────────────────┘                        
+      │                                                 │                                             
+      │                                                 │                                             
+      │                                                 │                                             
+      │                                                 ▼                                             
+      │                                   ┌─────────────────────────────┐                             
+      │                                   │ Compare the HTML title with │                             
+      │                                   │      the target's title     │                             
+      │                                   └─────────────────────────────┘                             
+      │                                                 │                                             
+      │                                                 │                                             
+      │                                                 │                                             
+      │                                                 ▼                                             
+      │                                       ┌─────────────────────┐                                 
+      │                                       │                     │       YES                       
+      │                                       │ Are they the same ? │─────────────────────┐           
+      │                                       │                     │                     │           
+      │                                       └─────────────────────┘                     ▼           
+      │                                                 │                          ┌───────────────┐  
+      │                                                 │NO                        │ Real IP found │  
+      │                                                 │                          └───────┬───────┘  
+      │                                                 ▼                                  │          
+      │                                            ┌──────────┐                            │          
+      └───────────────────────────────────────────►│  FINISH  │◄───────────────────────────┘          
+                                                   └──────────┘                                       
+
+
+```
 
 # Feautures
 ### Features
@@ -59,8 +135,11 @@ The tool analyzes data from these sources to identify potential origin IP addres
   - Checks current DNS records (A, TXT)
   - Extracts domains behind Cloudflare
   - Extracts domains not behind Cloudflare
+  - User-provided HTML title (in case of CF blocks you)
+  - Smart colouring
 
 - Third-party Intelligence
+  - ZoomEye integration
   - Censys integration
   - Shodan integration
   - SecurityTrails integration
@@ -167,6 +246,7 @@ go install -v github.com/musana/cf-hero/cmd/cf-hero@latest
 
 ```
 
+
         ____         __
   _____/ __/        / /_  ___  _________
  / ___/ /__  ___   / __ \/ _ \/ ___/ __ \
@@ -183,17 +263,20 @@ Usage:
 
 Flags:
 GENERAL OPTIONS:
-   -w int     Worker count (default 16)
-   -f string  Input file containing list of host/domain
+   -w int         Worker count (default 16)
+   -f string      Input file containing list of host/domain
+   -v             Enable verbose output
+   -title string  Specify HTML title to match (skip fetching from Cloudflare domain)
 
 PRINT OPTIONS:
-   -cf      Print domains behind of Cloudflare
-   -non-cf  Print domains not behind of Cloudflare
+   -cf      Print domains behind Cloudflare
+   -non-cf  Print domains not behind Cloudflare
 
 SOURCES:
    -censys          Include Censys in scanning
    -securitytrails  Include SecurityTrails historical DNS records in scanning
    -shodan          Include Shodan historical DNS records in scanning
+   -zoomeye         Include Zoomeye in scanning
    -dl string       Domain list for sub/domain scanning
    -td string       Target domain for sub/domain scanning
 
@@ -202,6 +285,7 @@ CONFIGURATION:
    -ja3 string  JA3 String (default "772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,18-10-16-23-45-35-5-11-13-65281-0-51-43-17513-27,29-23-24,0")
    -ua string   HTTP User-Agent (default "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/113.0")
    -px string   HTTP proxy URL
+
 
 
 ```
@@ -217,6 +301,12 @@ The most basic running command. It checks A and TXT records by default.
 or you can pass "f" parameter to it.
 ```
 # cf-hero -f domains.txt
+```
+
+
+Use the **zoomeye** parameter to include Shodan in the scan
+```
+# cat domain.txt | cf-hero -zoomeye
 ```
 
 Use the **censys** parameter to include Shodan in the scan
@@ -257,12 +347,14 @@ other options (custom ja3, proxy, worker, user agent)
 # cf-hero -d https://musana.net -ua "Mozilla" -w 32 -ja3 "771,22..." -px "http://127.0.0.1:8080"
 ```
 
-create cf-hero.yaml file under $HOME/.config/ directory to set censys API key
+create cf-hero.yaml file under $HOME/.config/ directory to set the APIs key
 ```
 # touch ~/.config/cf-hero.yaml
 
 // content of YAML file should be like;
 
+zoomeye:
+  - "api_key_here"
 securitytrails:
   - "api_key_here"
 shodan:
@@ -281,6 +373,12 @@ censys:
   <img src="img/2.png">
 </p>
 
+## 🏆 Sponsorship  
+This project is proudly supported by [ZoomEye](https://www.zoomeye.ai).  
+
+<p height="100" align="left">
+  <a href="https://www.zoomeye.ai"><img height="100" src="https://www.zoomeye.ai/static/logo-CVnk4X2t.svg"></a>
+</p>
+
 ## To Do
-- JA3 Randomization. (In some cases, Cloudflare blocks the JA3 hash of libraries used for automation/scanning purposes at the TLS layer. This feature is designed to bypass that protection. You can currently provide a custom JA3 string to bypass this protection.)
-- A more effective technique will be added to determine if two HTTP responses are the same.
+- favicon search
