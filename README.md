@@ -366,7 +366,7 @@ censys:
 
 ## SS
 
-Smart coloring: Yellow highlights indicate non-Cloudflare IPs, which will only be subject to checks.  
+Smart coloring: Yellow highlights indicate non-Cloudflare IPs, which will only be subject to checks. The title parameter can be set if the first request is blocked by Cloudflare. If the title parameter is not set, the HTML title is automatically retrieved.  
 <p align="left">
   <img src="img/3.png">
 </p>
