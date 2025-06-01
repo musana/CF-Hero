@@ -365,6 +365,8 @@ censys:
 ```
 
 ## SS
+
+Smart coloring: Yellow highlights indicate non-Cloudflare IPs, which will only be subject to checks.  
 <p align="left">
   <img src="img/3.png">
 </p>
