@@ -366,7 +366,7 @@ censys:
 
 ## SS
 <p align="left">
-  <img src="img/1.png">
+  <img src="img/3.png">
 </p>
 
 <p align="left">
