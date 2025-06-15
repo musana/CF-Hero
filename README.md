@@ -304,7 +304,7 @@ or you can pass "f" parameter to it.
 ```
 
 
-Use the **zoomeye** parameter to include Shodan in the scan
+Use the **zoomeye** parameter to include ZoomEye in the scan
 ```
 # cat domain.txt | cf-hero -zoomeye
 ```
@@ -386,3 +386,4 @@ This project is proudly supported by [ZoomEye](https://www.zoomeye.ai).
 
 ## To Do
 - favicon search
+- viewdns integration
