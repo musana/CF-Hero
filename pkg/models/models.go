@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 type Options struct {
@@ -25,18 +24,20 @@ type Options struct {
 	Title          string
 }
 
-type CensysJSON struct {
-	Code   int    `json:"code"`
-	Status string `json:"status"`
+// CensysPlatformResponse models the Censys Platform API
+// (POST https://api.platform.censys.io/v3/global/search/query) response.
+// The legacy search.censys.io v2 API has been deprecated.
+type CensysPlatformResponse struct {
 	Result struct {
 		Hits []struct {
-			IP            string    `json:"ip"`
-			LastUpdatedAt time.Time `json:"last_updated_at"`
+			HostV1 *struct {
+				Resource struct {
+					IP string `json:"ip"`
+				} `json:"resource"`
+			} `json:"host_v1"`
 		} `json:"hits"`
-		Links struct {
-			Next string `json:"next"`
-			Prev string `json:"prev"`
-		} `json:"links"`
+		NextPageToken string `json:"next_page_token"`
+		TotalHits     int    `json:"total_hits"`
 	} `json:"result"`
 }
 
@@ -57,11 +58,13 @@ type SecurityTrailsResponse struct {
 }
 
 type ShodanDNSHistoryResponse struct {
-	Data []struct {
+	Domain string `json:"domain"`
+	Data   []struct {
+		Subdomain string `json:"subdomain"`
 		Type      string `json:"type"`
 		Value     string `json:"value"`
+		Ports     []int  `json:"ports"`
 		LastSeen  string `json:"last_seen"`
-		FirstSeen string `json:"first_seen"`
 	} `json:"data"`
 }
 

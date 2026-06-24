@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"time"
 
 	"github.com/Danny-Dasilva/CycleTLS/cycletls"
+	"github.com/fatih/color"
 	"golang.org/x/net/html"
 )
 
@@ -30,7 +32,11 @@ func NewHTTPClient(proxy string, targetURL string) *http.Client {
 	}
 
 	if proxy != "" {
-		transport.Proxy = http.ProxyFromEnvironment
+		if proxyURL, err := neturl.Parse(proxy); err == nil {
+			transport.Proxy = http.ProxyURL(proxyURL)
+		} else {
+			color.Yellow("[!] Invalid proxy URL %q, ignoring: %v", proxy, err)
+		}
 	}
 
 	return &http.Client{

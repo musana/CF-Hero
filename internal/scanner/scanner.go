@@ -212,7 +212,7 @@ func (s *Scanner) Start(url string) {
 		}
 
 		if s.Options.DomainList != "" && s.Options.TargetDomain != "" {
-			s.checkDomainList(url, cfIPs[1], actualHTMLTitle)
+			s.checkDomainList(url, cfIPs[0], actualHTMLTitle)
 		}
 
 		// Print final results only for the last domain
@@ -329,58 +329,30 @@ func (s *Scanner) getTXTRecords(domain, url string, cfIP net.IP, actualHTMLTitle
 }
 
 func (s *Scanner) censysSearch(domain, url string, cfIP net.IP, actualHTMLTitle string) {
+	// Censys Platform API. The config "censys" list holds the Personal Access
+	// Token (PAT) as the first entry and, optionally, the Organization ID as
+	// the second entry (required for paid tiers):
+	//   censys:
+	//     - "censys_pat_xxxxxxxx"
+	//     - "your-organization-id"   # optional
 	keys := config.ReadAPIKeys("censys")
 	if len(keys) == 0 || keys[0] == "" {
 		return
 	}
-
-	key := keys[0]
-	keyToBytes := []byte(key)
-	token := base64.StdEncoding.EncodeToString(keyToBytes)
-
-	censysURL := "https://search.censys.io/api/v2/hosts/search?q=" + domain + "&per_page=50&virtual_hosts=EXCLUDE"
-	client := httpClient.NewHTTPClient(s.Options.Proxy, url)
-	resp, err := client.Do(httpClient.RequestBuilder(censysURL, token, s.Options.HTTPMethod, s.Options.UserAgent))
-	if err != nil {
-		if strings.Contains(err.Error(), "giving up after") {
-			color.Yellow("[!] Censys API rate limit exceeded. Please try again later. (%s)", domain)
-		} else {
-			color.Yellow("[!] Error making request to Censys API: %v", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != 200 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		var errorResponse struct {
-			Message string `json:"message"`
-		}
-		if err := json.Unmarshal(bodyBytes, &errorResponse); err == nil {
-			if strings.Contains(errorResponse.Message, "exceeded the usage limits") {
-				color.Yellow("[!] Censys API rate limit exceeded: %s", errorResponse.Message)
-			} else {
-				color.Yellow("[!] Censys API error: %s", errorResponse.Message)
-			}
-		} else {
-			color.Yellow("[!] Censys API returned non-200 status code %d: %s", resp.StatusCode, string(bodyBytes))
-		}
-		color.Yellow("[!] HTTP Status: %s", resp.Status)
-		color.Yellow("[!] HTTP Headers:")
-		for key, values := range resp.Header {
-			for _, value := range values {
-				color.Yellow("[!]   %s: %s", key, value)
-			}
-		}
-		return
+	pat := keys[0]
+	var orgID string
+	if len(keys) > 1 {
+		orgID = keys[1]
 	}
 
-	var data models.CensysJSON
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		color.Yellow("[!] Error decoding Censys response: %v", err)
-		return
+	censysURL := "https://api.platform.censys.io/v3/global/search/query"
+	if orgID != "" {
+		censysURL += "?organization_id=" + neturl.QueryEscape(orgID)
 	}
+
+	// CenQL query: match hosts that present the domain in their DNS names or in
+	// a served TLS certificate's leaf names (including subdomains).
+	query := fmt.Sprintf(`host.dns.names: "%s" or host.dns.names: "*.%s" or host.services.tls.certificates.leaf_data.names: "%s"`, domain, domain, domain)
 
 	var stats struct {
 		totalFound       int
@@ -394,9 +366,91 @@ func (s *Scanner) censysSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 		color.Cyan("\n[*] Censys search results for %s:", domain)
 	}
 
-	for _, cip := range data.Result.Hits {
-		censysIP := net.ParseIP(cip.IP)
-		if censysIP.To4() != nil {
+	client := httpClient.NewHTTPClient(s.Options.Proxy, url)
+	pageToken := ""
+
+	for {
+		requestBody := map[string]interface{}{
+			"query":     query,
+			"page_size": 100,
+		}
+		if pageToken != "" {
+			requestBody["page_token"] = pageToken
+		}
+		jsonBody, err := json.Marshal(requestBody)
+		if err != nil {
+			color.Yellow("[!] Error preparing Censys request body: %v", err)
+			return
+		}
+
+		req, err := http.NewRequest("POST", censysURL, strings.NewReader(string(jsonBody)))
+		if err != nil {
+			color.Yellow("[!] Error creating Censys request: %v", err)
+			return
+		}
+		req.Header.Set("Authorization", "Bearer "+pat)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("User-Agent", s.Options.UserAgent)
+		if orgID != "" {
+			req.Header.Set("X-Organization-ID", orgID)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			if strings.Contains(err.Error(), "giving up after") {
+				color.Yellow("[!] Censys API rate limit exceeded. Please try again later. (%s)", domain)
+			} else {
+				color.Yellow("[!] Error making request to Censys API: %v", err)
+			}
+			return
+		}
+
+		// Check response status
+		if resp.StatusCode != 200 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var errorResponse struct {
+				Message string `json:"message"`
+				Detail  string `json:"detail"`
+			}
+			msg := strings.TrimSpace(string(bodyBytes))
+			if err := json.Unmarshal(bodyBytes, &errorResponse); err == nil {
+				if errorResponse.Message != "" {
+					msg = errorResponse.Message
+				} else if errorResponse.Detail != "" {
+					msg = errorResponse.Detail
+				}
+			}
+			switch resp.StatusCode {
+			case 401:
+				color.Yellow("[!] Censys API authentication failed (401). Check your Personal Access Token. %s", msg)
+			case 403:
+				color.Yellow("[!] Censys API access denied (403). A paid plan and Organization ID may be required. %s", msg)
+			case 429:
+				color.Yellow("[!] Censys API rate limit exceeded (429): %s", msg)
+			default:
+				color.Yellow("[!] Censys API returned non-200 status code %d: %s", resp.StatusCode, msg)
+			}
+			return
+		}
+
+		var data models.CensysPlatformResponse
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			resp.Body.Close()
+			color.Yellow("[!] Error decoding Censys response: %v", err)
+			return
+		}
+		resp.Body.Close()
+
+		for _, hit := range data.Result.Hits {
+			if hit.HostV1 == nil {
+				continue
+			}
+			censysIP := net.ParseIP(hit.HostV1.Resource.IP)
+			if censysIP == nil || censysIP.To4() == nil {
+				continue
+			}
 			stats.totalFound++
 			result, _ := dns.IsInCloudflareIPRange(censysIP)
 			if s.Options.Verbose {
@@ -413,6 +467,11 @@ func (s *Scanner) censysSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 				s.compareTitle(url, censysIP, cfIP, "Censys", actualHTMLTitle)
 			}
 		}
+
+		if data.Result.NextPageToken == "" {
+			break
+		}
+		pageToken = data.Result.NextPageToken
 	}
 
 	if !s.Options.Verbose {
@@ -558,19 +617,28 @@ func (s *Scanner) shodanSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 			break
 		}
 
+		retryCount++
+		if retryCount == maxRetries {
+			// Retries exhausted. A transport error has no usable response, so
+			// report it and bail. A non-200 response is left open so the status
+			// handler below can surface the real reason (e.g. plan/credits).
+			if err != nil {
+				if resp != nil {
+					resp.Body.Close()
+				}
+				color.Red("[-] Error making request to Shodan API after %d retries: %v", maxRetries, err)
+				return
+			}
+			break
+		}
+
 		if resp != nil {
 			resp.Body.Close()
 		}
 
-		retryCount++
-		if retryCount == maxRetries {
-			color.Red("[-] Error making request to Shodan API after %d retries: %v\n", maxRetries, err)
-			return
-		}
-
 		// Exponential backoff: 1s, 2s, 4s, 8s, 16s
 		waitTime := time.Duration(1<<uint(retryCount-1)) * time.Second
-		color.Yellow("[!] Retrying Shodan API request in %v (attempt %d/%d)...\n", waitTime, retryCount, maxRetries)
+		color.Yellow("[!] Retrying Shodan API request in %v (attempt %d/%d)...", waitTime, retryCount, maxRetries)
 		time.Sleep(waitTime)
 	}
 	defer resp.Body.Close()
@@ -578,7 +646,14 @@ func (s *Scanner) shodanSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 	// Check response status
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		color.Yellow("[!] Shodan API returned non-200 status code %d: %s\n", resp.StatusCode, string(bodyBytes))
+		var errorResponse struct {
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(bodyBytes, &errorResponse); err == nil && errorResponse.Error != "" {
+			color.Yellow("[!] Shodan API error (%d): %s", resp.StatusCode, errorResponse.Error)
+		} else {
+			color.Yellow("[!] Shodan API returned non-200 status code %d: %s", resp.StatusCode, string(bodyBytes))
+		}
 		return
 	}
 
@@ -606,11 +681,11 @@ func (s *Scanner) shodanSearch(domain, url string, cfIP net.IP, actualHTMLTitle 
 				result, _ := dns.IsInCloudflareIPRange(ip)
 				if s.Options.Verbose {
 					if result {
-						color.White("[+] IP: %s (First seen: %s, Last seen: %s) (Cloudflare)",
-							record.Value, record.FirstSeen, record.LastSeen)
+						color.White("[+] IP: %s (Last seen: %s) (Cloudflare)",
+							record.Value, record.LastSeen)
 					} else {
-						color.Yellow("[+] IP: %s (First seen: %s, Last seen: %s)",
-							record.Value, record.FirstSeen, record.LastSeen)
+						color.Yellow("[+] IP: %s (Last seen: %s)",
+							record.Value, record.LastSeen)
 					}
 				}
 				if result {
@@ -641,12 +716,13 @@ func (s *Scanner) zoomeyeSearch(domain, url string, cfIP net.IP, actualHTMLTitle
 		return
 	}
 
-	// Base64 encode the query
-	query := fmt.Sprintf("domain=%s", domain)
+	// Base64 encode the query. The domain value must be quoted per ZoomEye's
+	// dork syntax, otherwise values containing dots may be parsed incorrectly.
+	query := fmt.Sprintf(`domain="%s"`, domain)
 	queryBase64 := base64.StdEncoding.EncodeToString([]byte(query))
 
 	page := 1
-	resultsPerPage := 20
+	resultsPerPage := 100
 	var totalResults int
 	var stats struct {
 		totalFound       int
@@ -658,8 +734,9 @@ func (s *Scanner) zoomeyeSearch(domain, url string, cfIP net.IP, actualHTMLTitle
 	for {
 		// Prepare request body
 		requestBody := map[string]interface{}{
-			"qbase64": queryBase64,
-			"page":    page,
+			"qbase64":  queryBase64,
+			"page":     page,
+			"pagesize": resultsPerPage,
 		}
 		jsonBody, err := json.Marshal(requestBody)
 		if err != nil {
@@ -677,6 +754,7 @@ func (s *Scanner) zoomeyeSearch(domain, url string, cfIP net.IP, actualHTMLTitle
 		}
 
 		req.Header.Set("API-KEY", key)
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", s.Options.UserAgent)
 
 		resp, err := client.Do(req)
@@ -700,6 +778,13 @@ func (s *Scanner) zoomeyeSearch(domain, url string, cfIP net.IP, actualHTMLTitle
 			return
 		}
 		resp.Body.Close()
+
+		// ZoomEye signals API-level errors (quota, auth, bad query) with a
+		// non-60000 code even on an HTTP 200 response.
+		if data.Code != 60000 {
+			color.Yellow("[!] ZoomEye API error (code %d): %s", data.Code, data.Message)
+			return
+		}
 
 		// Set total results on first page
 		if page == 1 {
@@ -756,8 +841,10 @@ func (s *Scanner) zoomeyeSearch(domain, url string, cfIP net.IP, actualHTMLTitle
 			}
 		}
 
-		// Check if we need to fetch more pages
-		if page*resultsPerPage >= totalResults {
+		// Stop when the API returns a short/empty page or we've covered every
+		// reported result. Guarding on the returned page length avoids an
+		// infinite loop if the reported total is inaccurate.
+		if len(data.Data) < resultsPerPage || page*resultsPerPage >= totalResults {
 			break
 		}
 		page++
