@@ -309,7 +309,7 @@ Use the **zoomeye** parameter to include ZoomEye in the scan
 # cat domain.txt | cf-hero -zoomeye
 ```
 
-Use the **censys** parameter to include Shodan in the scan
+Use the **censys** parameter to include Censys in the scan
 ```
 # cat domain.txt | cf-hero -censys
 ```
@@ -319,7 +319,7 @@ Use the **shodan** parameter to include Shodan in the scan
 # cat domain.txt | cf-hero -shodan
 ```
 
-Use the **securitytrails** parameter to include Shodan in the scan
+Use the **securitytrails** parameter to include SecurityTrails in the scan
 ```
 # cat domain.txt | cf-hero -securitytrails
 ```
