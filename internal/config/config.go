@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"sync"
 
 	"github.com/musana/cf-hero/pkg/models"
 	"github.com/projectdiscovery/goflags"
@@ -54,31 +56,41 @@ func createGroup(flagSet *goflags.FlagSet, groupName, description string, flags 
 	}
 }
 
-func ReadAPIKeys(source string) []string {
+var (
+	apiKeysOnce sync.Once
+	apiKeys     map[string][]string
+)
+
+// configPath returns the path to the cf-hero config file.
+func configPath() string {
 	home := os.Getenv("HOME")
 	if home == "" {
-		home = os.Getenv("USERPROFILE") // Windows için
+		home = os.Getenv("USERPROFILE") // Windows
 	}
+	return filepath.Join(home, ".config", "cf-hero.yaml")
+}
 
-	configPath := home + "/.config/cf-hero.yaml"
-	f, err := os.ReadFile(configPath)
-	if err != nil {
-		fmt.Printf("[!] Error reading config file %s: %v\n", configPath, err)
-		return nil
-	}
+// loadAPIKeys reads and parses the config file exactly once. Any error is
+// reported a single time rather than on every lookup.
+func loadAPIKeys() {
+	apiKeysOnce.Do(func() {
+		path := configPath()
+		f, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("[!] Error reading config file %s: %v\n", path, err)
+			return
+		}
 
-	var apiKeys map[string][]string
-	err = yaml.Unmarshal(f, &apiKeys)
-	if err != nil {
-		fmt.Printf("[!] Error parsing YAML from %s: %v\n", configPath, err)
-		return nil
-	}
+		if err := yaml.Unmarshal(f, &apiKeys); err != nil {
+			fmt.Printf("[!] Error parsing YAML from %s: %v\n", path, err)
+			apiKeys = nil
+		}
+	})
+}
 
-	keys, ok := apiKeys[source]
-	if !ok {
-		fmt.Printf("[!] No API keys found for source '%s' in %s\n", source, configPath)
-		return nil
-	}
-
-	return keys
+// ReadAPIKeys returns the configured API keys for the given source, or nil if
+// none are configured. The config file is loaded only once and cached.
+func ReadAPIKeys(source string) []string {
+	loadAPIKeys()
+	return apiKeys[source]
 }

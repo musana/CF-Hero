@@ -309,7 +309,7 @@ Use the **zoomeye** parameter to include ZoomEye in the scan
 # cat domain.txt | cf-hero -zoomeye
 ```
 
-Use the **censys** parameter to include Shodan in the scan
+Use the **censys** parameter to include Censys in the scan
 ```
 # cat domain.txt | cf-hero -censys
 ```
@@ -319,7 +319,7 @@ Use the **shodan** parameter to include Shodan in the scan
 # cat domain.txt | cf-hero -shodan
 ```
 
-Use the **securitytrails** parameter to include Shodan in the scan
+Use the **securitytrails** parameter to include SecurityTrails in the scan
 ```
 # cat domain.txt | cf-hero -securitytrails
 ```
@@ -354,15 +354,22 @@ create cf-hero.yaml file under $HOME/.config/ directory to set the APIs key
 // content of YAML file should be like;
 
 zoomeye:
-  - "api_key_here"
+  - "api_key_here"           # ZoomEye API v2 key (sent in the API-KEY header)
 securitytrails:
   - "api_key_here"
 shodan:
-  - "api_key_here"
+  - "api_key_here"           # standard Shodan API key (the /dns/domain endpoint requires a paid Membership)
 censys:
-  - "api_key_here"
+  - "censys_pat_here"        # Censys Platform Personal Access Token (PAT)
+  - "organization_id_here"   # optional: Censys Organization ID, required for paid plans
 
 ```
+
+> **Note on Censys:** CF-Hero now uses the [Censys Platform API](https://docs.censys.com/reference/get-started)
+> (the legacy `search.censys.io` API is being sunset in 2026). Generate a Personal Access Token (PAT)
+> from the Censys Platform console and put it as the first `censys` entry. If your account is on a paid
+> plan, add your Organization ID (shown on the API Access page) as the second entry — without it, the API
+> returns Free-tier permissions and may yield no results (HTTP 403).
 
 ## SS
 
